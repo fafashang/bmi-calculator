@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>健康体重管家 - BMI 计算器</title>
+  <style>
+    /* ===== 页面基础样式：浅色系、居中卡片、手机适配 ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      width: 100%;
+    }                                 {
+
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(15, 118, 110, 0.12);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h1 {
+      font-size: 24px;
+      color: #0f766e;
+      text-align: center;
+    }
+
+    .sub {
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+      margin: 6px 0 24px;
+    }
+
+    .form label {
+      display: block;
+      font-size: 14px;
+      color: #334155;
+      margin-bottom: 12px;
+    }
+
+    .form input {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .form input:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    button {
+      flex: 1;
+      padding: 11px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    #calc {
+      background: #0f766e;
+      color: #fff;
+    }
+
+    #calc:hover { background: #115e59; }
+
+    #reset {
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    #reset:hover { background: #cbd5e1; }
+
+    /* ===== 结果区：默认隐藏，计算后显示 ===== */
+    .result {
+      margin-top: 22px;
+      padding: 18px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      text-align: center;
+    }
+
+    .result.hidden { display: none; }
+
+    .bmi {
+      font-size: 15px;
+      color: #64748b;
+    }
+
+    #bmiVal {
+      font-size: 40px;
+      font-weight: 700;
+      color: #0f766e;
+    }
+
+    #category {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    #range {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+
+    #error {
+      margin-top: 14px;
+      color: #dc2626;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>健康体重管家</h1>
+    <p class="sub">BMI 体质指数计算器 · 中国成人标准</p>
+
+    <div class="form">
+      <label>身高（厘米）
+        <input id="height" type="number" min="80" max="250" placeholder="例如 175">
+      </label>
+      <label>体重（公斤）
+        <input id="weight" type="number" min="20" max="300" placeholder="例如 70">
+      </label>
+      <div class="btns">
+        <button id="calc">计算 BMI</button>
+        <button id="reset">重新计算</button>
+      </div>
+    </div>
+
+    <div id="error"></div>
+
+    <!-- 结果区 -->
+    <div id="result" class="result hidden">
+      <div class="bmi">BMI <span id="bmiVal">--</span></div>
+      <div id="category">--</div>
+      <div id="range">--</div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 中国成人 BMI 分类标准 =====
+    // 偏瘦 < 18.5   正常 18.5–23.9   超重 24–27.9   肥胖 ≥ 28
+    function classify(bmi) {
+      if (bmi < 18.5) return { text: "偏瘦", color: "#f59e0b" };
+      if (bmi < 24)   return { text: "正常", color: "#059669" };
+      if (bmi < 28)   return { text: "超重", color: "#f59e0b" };
+      return { text: "肥胖", color: "#dc2626" };
+    }
+
+    // 计算"正常"分类对应的体重区间（正常 BMI 18.5–23.9 × 身高²）
+    function normalWeightRange(heightCm) {
+      var h = heightCm / 100;
+      var min = Math.round(18.5 * h * h * 10) / 10;
+      var max = Math.round(23.9 * h * h * 10) / 10;
+      return { min: min, max: max };
+    }
+
+    var calcBtn = document.getElementById("calc");
+    var resetBtn = document.getElementById("reset");
+    var heightInput = document.getElementById("height");
+    var weightInput = document.getElementById("weight");
+    var errorBox = document.getElementById("error");
+    var resultBox = document.getElementById("result");
+
+    calcBtn.addEventListener("click", function () {
+      errorBox.textContent = "";
+      var h = parseFloat(heightInput.value);
+      var w = parseFloat(weightInput.value);
+
+      // 输入检查：必须是有效数字且在合理范围
+      if (!h || !w || h < 80 || h > 250 || w < 20 || w > 300) {
+        errorBox.textContent = "请输入有效的身高（80–250 厘米）和体重（20–300 公斤）";
+        return;
+      }
+
+      var bmi = Math.round((w / ((h / 100) * (h / 100))) * 10) / 10;
+      var cat = classify(bmi);
+      var range = normalWeightRange(h);
+
+      document.getElementById("bmiVal").textContent = bmi.toFixed(1);
+      var catEl = document.getElementById("category");
+      catEl.textContent = "体重分类：" + cat.text;
+      catEl.style.color = cat.color;
+      document.getElementById("range").textContent =
+        "你的标准体重范围：" + range.min + " – " + range.max + " 公斤";
+
+      resultBox.classList.remove("hidden");
+    });
+
+    // 重新计算：清空输入和结果
+    resetBtn.addEventListener("click", function () {
+      heightInput.value = "";
+      weightInput.value = "";
+      errorBox.textContent = "";
+      resultBox.classList.add("hidden");
+      heightInput.focus();
+    });
+  </script>
+</body>
+</html>
